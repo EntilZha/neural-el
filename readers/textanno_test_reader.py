@@ -13,17 +13,24 @@ end_word = "<eos>"
 
 # Reader for Text Annotations
 class TextAnnoTestReader(object):
-    def __init__(self, config, vocabloader,
-                 num_cands, batch_size, strict_context=True,
-                 pretrain_wordembed=True, coherence=True,
-                 nerviewname="NER_CONLL"):
+    def __init__(
+        self,
+        config,
+        vocabloader,
+        num_cands,
+        batch_size,
+        strict_context=True,
+        pretrain_wordembed=True,
+        coherence=True,
+        nerviewname="NER_CONLL",
+    ):
         self.typeOfReader = "inference"
         self.start_word = start_word
         self.end_word = end_word
-        self.unk_word = 'unk'  # In tune with word2vec
+        self.unk_word = "unk"  # In tune with word2vec
         self.unk_wid = "<unk_wid>"
-        self.tr_sup = 'tr_sup'
-        self.tr_unsup = 'tr_unsup'
+        self.tr_sup = "tr_sup"
+        self.tr_unsup = "tr_unsup"
         self.pretrain_wordembed = pretrain_wordembed
         self.coherence = coherence
         self.nerviewname = nerviewname
@@ -45,8 +52,7 @@ class TextAnnoTestReader(object):
 
         # Coherence String Vocab
         print("Loading Coherence Strings Dicts ... ")
-        (self.cohG92idx, self.idx2cohG9) = utils.load(
-            config.cohstringG9_vocab_pkl)
+        (self.cohG92idx, self.idx2cohG9) = utils.load(config.cohstringG9_vocab_pkl)
         self.num_cohstr = len(self.idx2cohG9)
 
         # Crosswikis
@@ -58,8 +64,7 @@ class TextAnnoTestReader(object):
             stime = time.time()
             self.word2vec = vocabloader.loadGloveVectors()
             print("[#] Glove Vectors loaded!")
-            ttime = (time.time() - stime)/float(60)
-
+            ttime = (time.time() - stime) / float(60)
 
         # print("[#] Test Mentions File : {}".format(test_mens_file))
 
@@ -89,12 +94,13 @@ class TextAnnoTestReader(object):
         self.strict_context = strict_context
 
         print("\n[#]LOADING COMPLETE")
-  #*******************      END __init__      *********************************
+
+    # *******************      END __init__      *********************************
 
     def new_test_file(self, test_mens_file):
         self.test_mens_file = test_mens_file
 
-        with open(test_mens_file, 'r') as f:
+        with open(test_mens_file, "r") as f:
             tajsonstr = f.read()
         ta = TextAnnotation(json_str=tajsonstr)
         self.textanno = ta
@@ -102,7 +108,8 @@ class TextAnnoTestReader(object):
         (sentences_tokenized, modified_ner_cons_list) = self.processTestDoc(ta)
 
         self.mention_lines = self.convertSent2NerToMentionLines(
-            sentences_tokenized, modified_ner_cons_list)
+            sentences_tokenized, modified_ner_cons_list
+        )
 
         self.mentions = []
         for line in self.mention_lines:
@@ -124,7 +131,8 @@ class TextAnnoTestReader(object):
         (sentences_tokenized, modified_ner_cons_list) = self.processTestDoc(ta)
 
         self.mention_lines = self.convertSent2NerToMentionLines(
-            sentences_tokenized, modified_ner_cons_list)
+            sentences_tokenized, modified_ner_cons_list
+        )
 
         self.mentions = []
         for line in self.mention_lines:
@@ -135,13 +143,11 @@ class TextAnnoTestReader(object):
         self.num_mens = len(self.mentions)
         self.epochs = 0
 
-
-
     def get_vector(self, word):
         if word in self.word2vec:
             return self.word2vec[word]
         else:
-            return self.word2vec['unk']
+            return self.word2vec["unk"]
 
     def reset_test(self):
         self.men_idx = 0
@@ -151,12 +157,11 @@ class TextAnnoTestReader(object):
         doc_tokens = ccgdoc.get_tokens
         # sent_end_token_indices : contains index for the starting of the
         # next sentence.
-        sent_end_token_indices = \
-            ccgdoc.get_sentence_end_token_indices
+        sent_end_token_indices = ccgdoc.get_sentence_end_token_indices
         # List of tokenized sentences
         sentences_tokenized = []
         for i in range(0, len(sent_end_token_indices)):
-            start = sent_end_token_indices[i-1] if i != 0 else 0
+            start = sent_end_token_indices[i - 1] if i != 0 else 0
             end = sent_end_token_indices[i]
             sent_tokens = doc_tokens[start:end]
             sentences_tokenized.append(sent_tokens)
@@ -165,6 +170,8 @@ class TextAnnoTestReader(object):
         ner_cons_list = []
         try:
             ner_cons_list = ccgdoc.get_view(self.nerviewname).cons_list
+            if ner_cons_list is None:
+                ner_cons_list = []
         except:
             print("NO NAMED ENTITIES IN THE DOC. EXITING")
 
@@ -178,13 +185,12 @@ class TextAnnoTestReader(object):
             found = False
             # idx = sentIdx, j = sentEndTokenIdx
             for idx, j in enumerate(sent_end_token_indices):
-                sent_start_token = sent_end_token_indices[idx-1] \
-                    if idx != 0 else 0
+                sent_start_token = sent_end_token_indices[idx - 1] if idx != 0 else 0
                 # ner['end'] is the idx of the token after ner
-                if ner['end'] <= j:
-                    ner['start'] = ner['start'] - sent_start_token
-                    ner['end'] = ner['end'] - sent_start_token - 1
-                    ner['sent_idx'] = idx
+                if ner["end"] <= j:
+                    ner["start"] = ner["start"] - sent_start_token
+                    ner["end"] = ner["end"] - sent_start_token - 1
+                    ner["sent_idx"] = idx
 
                     modified_ner_cons_list.append(ner)
 
@@ -193,9 +199,10 @@ class TextAnnoTestReader(object):
                     break
         return (sentences_tokenized, modified_ner_cons_list)
 
-    def convertSent2NerToMentionLines(self, sentences_tokenized,
-                                      modified_ner_cons_list):
-        '''Convert NERs from document to list of mention strings'''
+    def convertSent2NerToMentionLines(
+        self, sentences_tokenized, modified_ner_cons_list
+    ):
+        """Convert NERs from document to list of mention strings"""
         mentions = []
         # Make Document Context String for whole document
         cohStr = ""
@@ -204,33 +211,35 @@ class TextAnnoTestReader(object):
         #         cohStr += ner['tokens'].replace(' ', '_') + ' '
 
         for ner_men in modified_ner_cons_list:
-            cohStr += ner_men['tokens'].replace(' ', '_') + ' '
+            cohStr += ner_men["tokens"].replace(" ", "_") + " "
 
         cohStr = cohStr.strip()
 
         for ner_men in modified_ner_cons_list:
-            idx = ner_men['sent_idx']
-            sentence = ' '.join(sentences_tokenized[idx])
+            idx = ner_men["sent_idx"]
+            sentence = " ".join(sentences_tokenized[idx])
 
             mention = "%s\t%s\t%s" % ("unk_mid", "unk_wid", "unkWT")
-            mention = mention + '\t' + str(ner_men['start'])
-            mention = mention + '\t' + str(ner_men['end'])
-            mention = mention + '\t' + str(ner_men['tokens'])
-            mention = mention + '\t' + sentence
-            mention = mention + '\t' + "UNK_TYPES"
-            mention = mention + '\t' + cohStr
+            mention = mention + "\t" + str(ner_men["start"])
+            mention = mention + "\t" + str(ner_men["end"])
+            mention = mention + "\t" + str(ner_men["tokens"])
+            mention = mention + "\t" + sentence
+            mention = mention + "\t" + "UNK_TYPES"
+            mention = mention + "\t" + cohStr
             mentions.append(mention)
         return mentions
 
     def bracketMentionInSentence(self, s, nerDict):
         tokens = s.split(" ")
-        start = nerDict['start']
-        end = nerDict['end']
-        tokens.insert(start, '[[')
-        tokens.insert(end + 2, ']]')
-        return ' '.join(tokens)
+        start = nerDict["start"]
+        end = nerDict["end"]
+        tokens.insert(start, "[[")
+        tokens.insert(end + 2, "]]")
+        return " ".join(tokens)
 
     def _read_mention(self):
+        if self.num_mens == 0:
+            return None
         mention = self.mentions[self.men_idx]
         self.men_idx += 1
         if self.men_idx == self.num_mens:
@@ -239,9 +248,9 @@ class TextAnnoTestReader(object):
         return mention
 
     def _next_batch(self):
-        ''' Data : wikititle \t mid \t wid \t start \t end \t tokens \t labels
+        """ Data : wikititle \t mid \t wid \t start \t end \t tokens \t labels
         start and end are inclusive
-        '''
+        """
         # Sentence     = s1 ... m1 ... mN, ... sN.
         # Left Batch   = s1 ... m1 ... mN
         # Right Batch  = sN ... mN ... m1
@@ -261,13 +270,15 @@ class TextAnnoTestReader(object):
         while len(left_batch) < self.batch_size:
             batch_el = len(left_batch)
             m = self._read_mention()
+            if m is None:
+                return None, None, None, None, None
 
             # for label in m.types:
             #     if label in self.label2idx:
             #         labelidx = self.label2idx[label]
             #         labels_batch[batch_el][labelidx] = 1.0
 
-            cohFound = False    # If no coherence mention is found, add unk
+            cohFound = False  # If no coherence mention is found, add unk
             if self.coherence:
                 cohidxs = []  # Indexes in the [B, NumCoh] matrix
                 cohvals = []  # 1.0 to indicate presence
@@ -286,23 +297,21 @@ class TextAnnoTestReader(object):
                     coh_values.append(1.0)
 
             # Left and Right context includes mention surface
-            left_tokens = m.sent_tokens[0:m.end_token+1]
-            right_tokens = m.sent_tokens[m.start_token:][::-1]
+            left_tokens = m.sent_tokens[0 : m.end_token + 1]
+            right_tokens = m.sent_tokens[m.start_token :][::-1]
 
             # Strict left and right context
             if self.strict_context:
-                left_tokens = m.sent_tokens[0:m.start_token]
-                right_tokens = m.sent_tokens[m.end_token+1:][::-1]
+                left_tokens = m.sent_tokens[0 : m.start_token]
+                right_tokens = m.sent_tokens[m.end_token + 1 :][::-1]
             # Left and Right context includes mention surface
             else:
-                left_tokens = m.sent_tokens[0:m.end_token+1]
-                right_tokens = m.sent_tokens[m.start_token:][::-1]
+                left_tokens = m.sent_tokens[0 : m.end_token + 1]
+                right_tokens = m.sent_tokens[m.start_token :][::-1]
 
             if not self.pretrain_wordembed:
-                left_idxs = [self.convert_word2idx(word)
-                             for word in left_tokens]
-                right_idxs = [self.convert_word2idx(word)
-                              for word in right_tokens]
+                left_idxs = [self.convert_word2idx(word) for word in left_tokens]
+                right_idxs = [self.convert_word2idx(word) for word in right_tokens]
             else:
                 left_idxs = left_tokens
                 right_idxs = right_tokens
@@ -318,16 +327,26 @@ class TextAnnoTestReader(object):
 
         coherence_batch = (coh_indices, coh_values, coh_matshape)
 
-        return (left_batch, right_batch,
-                coherence_batch, wid_idxs_batch, wid_cprobs_batch)
+        return (
+            left_batch,
+            right_batch,
+            coherence_batch,
+            wid_idxs_batch,
+            wid_cprobs_batch,
+        )
 
     def print_test_batch(self, mention, wid_idxs, wid_cprobs):
-        print("Surface : {}  WID : {}  WT: {}".format(
-            mention.surface, mention.wid, self.wid2WikiTitle[mention.wid]))
+        print(
+            "Surface : {}  WID : {}  WT: {}".format(
+                mention.surface, mention.wid, self.wid2WikiTitle[mention.wid]
+            )
+        )
         print(mention.wid in self.knwid2idx)
-        for (idx,cprob) in zip(wid_idxs, wid_cprobs):
-            print("({} : {:0.5f})".format(
-                self.wid2WikiTitle[self.idx2knwid[idx]], cprob), end=" ")
+        for (idx, cprob) in zip(wid_idxs, wid_cprobs):
+            print(
+                "({} : {:0.5f})".format(self.wid2WikiTitle[self.idx2knwid[idx]], cprob),
+                end=" ",
+            )
             print("\n")
 
     def make_candidates_cprobs(self, m):
@@ -339,7 +358,7 @@ class TextAnnoTestReader(object):
         # print(surface)
         if surface in self.crosswikis:
             # Pruned crosswikis has only known wids and 30 cands at max
-            candwids_cprobs = self.crosswikis[surface][0:self.num_cands-1]
+            candwids_cprobs = self.crosswikis[surface][0 : self.num_cands - 1]
             (wids, wid_cprobs) = candwids_cprobs
             wid_idxs = [self.knwid2idx[wid] for wid in wids]
 
@@ -347,18 +366,18 @@ class TextAnnoTestReader(object):
 
         # assert len(wid_idxs) == len(wid_cprobs)
         remain = self.num_cands - len(wid_idxs)
-        wid_idxs.extend([0]*remain)
+        wid_idxs.extend([0] * remain)
         remain = self.num_cands - len(wid_cprobs)
-        wid_cprobs.extend([0.0]*remain)
+        wid_cprobs.extend([0.0] * remain)
 
         return (wid_idxs, wid_cprobs)
 
     def embed_batch(self, batch):
-        ''' Input is a padded batch of left or right contexts containing words
+        """ Input is a padded batch of left or right contexts containing words
             Dimensions should be [B, padded_length]
         Output:
             Embed the word idxs using pretrain word embedding
-        '''
+        """
         output_batch = []
         for sent in batch:
             word_embeddings = [self.get_vector(word) for word in sent]
@@ -366,8 +385,8 @@ class TextAnnoTestReader(object):
         return output_batch
 
     def embed_mentions_batch(self, mentions_batch):
-        ''' Input is batch of mention tokens as a list of list of tokens.
-        Output: For each mention, average word embeddings '''
+        """ Input is batch of mention tokens as a list of list of tokens.
+        Output: For each mention, average word embeddings """
         embedded_mentions_batch = []
         for m_tokens in mentions_batch:
             outvec = np.zeros(300, dtype=float)
@@ -386,13 +405,19 @@ class TextAnnoTestReader(object):
         lengths = [len(i) for i in batch]
         max_length = max(lengths)
         for i in range(0, len(batch)):
-            batch[i].extend([pad_unit]*(max_length - lengths[i]))
+            batch[i].extend([pad_unit] * (max_length - lengths[i]))
         return (batch, lengths)
 
     def _next_padded_batch(self):
-        (left_batch, right_batch,
-         coherence_batch,
-         wid_idxs_batch, wid_cprobs_batch) = self._next_batch()
+        (
+            left_batch,
+            right_batch,
+            coherence_batch,
+            wid_idxs_batch,
+            wid_cprobs_batch,
+        ) = self._next_batch()
+        if left_batch is None:
+            return (None, None, None, None, None, None, None)
 
         (left_batch, left_lengths) = self.pad_batch(left_batch)
         (right_batch, right_lengths) = self.pad_batch(right_batch)
@@ -401,8 +426,15 @@ class TextAnnoTestReader(object):
             left_batch = self.embed_batch(left_batch)
             right_batch = self.embed_batch(right_batch)
 
-        return (left_batch, left_lengths, right_batch, right_lengths,
-                coherence_batch, wid_idxs_batch, wid_cprobs_batch)
+        return (
+            left_batch,
+            left_lengths,
+            right_batch,
+            right_lengths,
+            coherence_batch,
+            wid_idxs_batch,
+            wid_cprobs_batch,
+        )
 
     def convert_word2idx(self, word):
         if word in self.word2idx:
@@ -418,37 +450,52 @@ class TextAnnoTestReader(object):
         wikiTitle = self.wid2WikiTitle[wid]
         return wikiTitle
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sttime = time.time()
     batch_size = 2
     num_batch = 1000
     configpath = "configs/all_mentions_config.ini"
     config = Config(configpath, verbose=False)
     vocabloader = VocabLoader(config)
-    b = TextAnnoTestReader(config=config,
-                           vocabloader=vocabloader,
-                           num_cands=30,
-                           batch_size=batch_size,
-                           strict_context=False,
-                           pretrain_wordembed=True,
-                           coherence=True)
+    b = TextAnnoTestReader(
+        config=config,
+        vocabloader=vocabloader,
+        num_cands=30,
+        batch_size=batch_size,
+        strict_context=False,
+        pretrain_wordembed=True,
+        coherence=True,
+    )
 
     stime = time.time()
 
     i = 0
     total_instances = 0
     while b.epochs < 1:
-        (left_batch, left_lengths, right_batch, right_lengths,
-         coherence_batch, wid_idxs_batch,
-         wid_cprobs_batch) = b.next_test_batch()
+        (
+            left_batch,
+            left_lengths,
+            right_batch,
+            right_lengths,
+            coherence_batch,
+            wid_idxs_batch,
+            wid_cprobs_batch,
+        ) = b.next_test_batch()
         if i % 100 == 0:
             etime = time.time()
-            t=etime-stime
+            t = etime - stime
             print("{} done. Time taken : {} seconds".format(i, t))
             i += 1
     etime = time.time()
-    t=etime-stime
+    t = etime - stime
     tt = etime - sttime
     print("Total Instances : {}".format(total_instances))
-    print("Batching time (in secs) to make %d batches of size %d : %7.4f seconds" % (i, batch_size, t))
-    print("Total time (in secs) to make %d batches of size %d : %7.4f seconds" % (i, batch_size, tt))
+    print(
+        "Batching time (in secs) to make %d batches of size %d : %7.4f seconds"
+        % (i, batch_size, t)
+    )
+    print(
+        "Total time (in secs) to make %d batches of size %d : %7.4f seconds"
+        % (i, batch_size, tt)
+    )

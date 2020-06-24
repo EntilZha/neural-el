@@ -34,3 +34,6 @@ numpy == 1.11.3
 # models/figer_model/wiki_desc.py: 3
 # neuralel.py: 5
 tensorflow == 0.12.1
+memory_profiler
+tqdm
+ftfy

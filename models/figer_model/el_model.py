@@ -22,15 +22,36 @@ np.set_printoptions(precision=5)
 class ELModel(Model):
     """Unsupervised Clustering using Discrete-State VAE"""
 
-    def __init__(self, sess, reader, dataset, max_steps, pretrain_max_steps,
-                 word_embed_dim, context_encoded_dim,
-                 context_encoder_lstmsize, context_encoder_num_layers,
-                 coherence_numlayers, jointff_numlayers,
-                 learning_rate, dropout_keep_prob, reg_constant,
-                 checkpoint_dir, optimizer, mode='train', strict=False,
-                 pretrain_word_embed=True, typing=True, el=True,
-                 coherence=False, textcontext=False, useCNN=False,
-                 WDLength=100, Fsize=5, entyping=True):
+    def __init__(
+        self,
+        sess,
+        reader,
+        dataset,
+        max_steps,
+        pretrain_max_steps,
+        word_embed_dim,
+        context_encoded_dim,
+        context_encoder_lstmsize,
+        context_encoder_num_layers,
+        coherence_numlayers,
+        jointff_numlayers,
+        learning_rate,
+        dropout_keep_prob,
+        reg_constant,
+        checkpoint_dir,
+        optimizer,
+        mode="train",
+        strict=False,
+        pretrain_word_embed=True,
+        typing=True,
+        el=True,
+        coherence=False,
+        textcontext=False,
+        useCNN=False,
+        WDLength=100,
+        Fsize=5,
+        entyping=True,
+    ):
         self.optimizer = optimizer
         self.mode = mode
         self.sess = sess
@@ -39,8 +60,8 @@ class ELModel(Model):
         self.strict = strict
         self.pretrain_word_embed = pretrain_word_embed
         assert self.pretrain_word_embed, "Only use pretrained word embeddings"
-        self.typing = typing    # Bool - Perform typing
-        self.el = el    # Bool - Perform Entity-Linking
+        self.typing = typing  # Bool - Perform typing
+        self.el = el  # Bool - Perform Entity-Linking
         self.coherence = coherence
         self.textcontext = textcontext
         if not (self.coherence or self.textcontext):
@@ -50,7 +71,6 @@ class ELModel(Model):
         self.WDLength = WDLength
         self.Fsize = Fsize
         self.entyping = entyping
-
 
         self.max_steps = max_steps  # Max num of steps of training to run
         self.pretrain_max_steps = pretrain_max_steps
@@ -95,25 +115,35 @@ class ELModel(Model):
         self.wikidesc_loss_scope = "wikidesc_loss"
         self.optim_scope = "labeling_optimization"
 
-        self._attrs=[
-          "textcontext", "coherence", "typing",
-          "pretrain_word_embed", "word_embed_dim", "num_words", "num_labels",
-          "num_knwn_entities", "context_encoded_dim", "context_encoder_lstmsize",
-          "context_encoder_num_layers", "coherence_numlayers",
-          "reg_constant", "strict", "lr", "optimizer"]
+        self._attrs = [
+            "textcontext",
+            "coherence",
+            "typing",
+            "pretrain_word_embed",
+            "word_embed_dim",
+            "num_words",
+            "num_labels",
+            "num_knwn_entities",
+            "context_encoded_dim",
+            "context_encoder_lstmsize",
+            "context_encoder_num_layers",
+            "coherence_numlayers",
+            "reg_constant",
+            "strict",
+            "lr",
+            "optimizer",
+        ]
 
-
-        #GPU Allocations
-        self.device_placements = {
-          'cpu': '/cpu:0',
-          'gpu': '/gpu:0'
-        }
+        # GPU Allocations
+        self.device_placements = {"cpu": "/cpu:0", "gpu": "/gpu:0"}
 
         with tf.variable_scope("figer_model") as scope:
-            self.learning_rate = tf.Variable(self.lr, name='learning_rate',
-                                             trainable=False)
-            self.global_step = tf.Variable(0, name='global_step', trainable=False,
-                                           dtype=tf.int32)
+            self.learning_rate = tf.Variable(
+                self.lr, name="learning_rate", trainable=False
+            )
+            self.global_step = tf.Variable(
+                0, name="global_step", trainable=False, dtype=tf.int32
+            )
             self.increment_global_step_op = self.global_step.assign_add(1)
 
             self.build_placeholders()
@@ -122,176 +152,213 @@ class ELModel(Model):
             with tf.variable_scope(self.encoder_model_scope) as scope:
                 if self.pretrain_word_embed == False:
                     self.left_context_embeddings = tf.nn.embedding_lookup(
-                      self.word_embeddings, self.left_batch, name="left_embeddings")
+                        self.word_embeddings, self.left_batch, name="left_embeddings"
+                    )
                     self.right_context_embeddings = tf.nn.embedding_lookup(
-                      self.word_embeddings, self.right_batch, name="right_embeddings")
-
+                        self.word_embeddings, self.right_batch, name="right_embeddings"
+                    )
 
                 if self.textcontext:
                     self.context_encoder_model = ContextEncoderModel(
-                      num_layers=self.context_encoder_num_layers,
-                      batch_size=self.batch_size,
-                      lstm_size=self.context_encoder_lstmsize,
-                      left_embed_batch=self.left_context_embeddings,
-                      left_lengths=self.left_lengths,
-                      right_embed_batch=self.right_context_embeddings,
-                      right_lengths=self.right_lengths,
-                      context_encoded_dim=self.context_encoded_dim,
-                      scope_name=self.encoder_model_scope,
-                      device=self.device_placements['gpu'],
-                      dropout_keep_prob=self.dropout_keep_prob)
+                        num_layers=self.context_encoder_num_layers,
+                        batch_size=self.batch_size,
+                        lstm_size=self.context_encoder_lstmsize,
+                        left_embed_batch=self.left_context_embeddings,
+                        left_lengths=self.left_lengths,
+                        right_embed_batch=self.right_context_embeddings,
+                        right_lengths=self.right_lengths,
+                        context_encoded_dim=self.context_encoded_dim,
+                        scope_name=self.encoder_model_scope,
+                        device=self.device_placements["gpu"],
+                        dropout_keep_prob=self.dropout_keep_prob,
+                    )
 
                 if self.coherence:
                     self.coherence_model = CoherenceModel(
-                      num_layers=self.coherence_numlayers,
-                      batch_size=self.batch_size,
-                      input_size=self.reader.num_cohstr,
-                      coherence_indices=self.coherence_indices,
-                      coherence_values=self.coherence_values,
-                      coherence_matshape=self.coherence_matshape,
-                      context_encoded_dim=self.context_encoded_dim,
-                      scope_name=self.coherence_model_scope,
-                      device=self.device_placements['gpu'],
-                      dropout_keep_prob=self.dropout_keep_prob)
+                        num_layers=self.coherence_numlayers,
+                        batch_size=self.batch_size,
+                        input_size=self.reader.num_cohstr,
+                        coherence_indices=self.coherence_indices,
+                        coherence_values=self.coherence_values,
+                        coherence_matshape=self.coherence_matshape,
+                        context_encoded_dim=self.context_encoded_dim,
+                        scope_name=self.coherence_model_scope,
+                        device=self.device_placements["gpu"],
+                        dropout_keep_prob=self.dropout_keep_prob,
+                    )
 
                 if self.coherence and self.textcontext:
                     # [B, 2*context_encoded_dim]
                     joint_context_encoded = tf.concat(
-                      1, [self.context_encoder_model.context_encoded,
-                          self.coherence_model.coherence_encoded],
-                      name='joint_context_encoded')
+                        1,
+                        [
+                            self.context_encoder_model.context_encoded,
+                            self.coherence_model.coherence_encoded,
+                        ],
+                        name="joint_context_encoded",
+                    )
 
-                    context_vec_size = 2*self.context_encoded_dim
+                    context_vec_size = 2 * self.context_encoded_dim
 
                     ### WITH FF AFTER CONCAT  ##########
                     trans_weights = tf.get_variable(
-                      name="joint_trans_weights",
-                      shape=[context_vec_size, context_vec_size],
-                      initializer=tf.random_normal_initializer(
-                        mean=0.0,
-                        stddev=1.0/(100.0)))
+                        name="joint_trans_weights",
+                        shape=[context_vec_size, context_vec_size],
+                        initializer=tf.random_normal_initializer(
+                            mean=0.0, stddev=1.0 / (100.0)
+                        ),
+                    )
 
                     # [B, context_encoded_dim]
-                    joint_context_encoded = tf.matmul(joint_context_encoded, trans_weights)
+                    joint_context_encoded = tf.matmul(
+                        joint_context_encoded, trans_weights
+                    )
                     self.joint_context_encoded = tf.nn.relu(joint_context_encoded)
                     ####################################
 
                 elif self.textcontext:
-                    self.joint_context_encoded = self.context_encoder_model.context_encoded
+                    self.joint_context_encoded = (
+                        self.context_encoder_model.context_encoded
+                    )
                     context_vec_size = self.context_encoded_dim
                 elif self.coherence:
                     self.joint_context_encoded = self.coherence_model.coherence_encoded
                     context_vec_size = self.context_encoded_dim
                 else:
-                    print("ERROR:Atleast one of local or "
-                          "document context needed.")
+                    print("ERROR:Atleast one of local or " "document context needed.")
                     sys.exit(0)
 
                 self.posterior_model = EntityPosterior(
-                  batch_size=self.batch_size,
-                  num_knwn_entities=self.num_knwn_entities,
-                  context_encoded_dim=context_vec_size,
-                  context_encoded=self.joint_context_encoded,
-                  entity_ids=self.sampled_entity_ids,
-                  scope_name=self.entity_posterior_scope,
-                  device_embeds=self.device_placements['gpu'],
-                  device_gpu=self.device_placements['gpu'])
+                    batch_size=self.batch_size,
+                    num_knwn_entities=self.num_knwn_entities,
+                    context_encoded_dim=context_vec_size,
+                    context_encoded=self.joint_context_encoded,
+                    entity_ids=self.sampled_entity_ids,
+                    scope_name=self.entity_posterior_scope,
+                    device_embeds=self.device_placements["gpu"],
+                    device_gpu=self.device_placements["gpu"],
+                )
 
                 self.labeling_model = LabelingModel(
-                  batch_size=self.batch_size,
-                  num_labels=self.num_labels,
-                  context_encoded_dim=context_vec_size,
-                  true_entity_embeddings=self.posterior_model.trueentity_embeddings,
-                  word_embed_dim=self.word_embed_dim,
-                  context_encoded=self.joint_context_encoded,
-                  mention_embed=None,
-                  scope_name=self.label_model_scope,
-                  device=self.device_placements['gpu'])
+                    batch_size=self.batch_size,
+                    num_labels=self.num_labels,
+                    context_encoded_dim=context_vec_size,
+                    true_entity_embeddings=self.posterior_model.trueentity_embeddings,
+                    word_embed_dim=self.word_embed_dim,
+                    context_encoded=self.joint_context_encoded,
+                    mention_embed=None,
+                    scope_name=self.label_model_scope,
+                    device=self.device_placements["gpu"],
+                )
 
                 if self.useCNN:
                     self.wikidescmodel = WikiDescModel(
-                      desc_batch=self.wikidesc_batch,
-                      trueentity_embs=self.posterior_model.trueentity_embeddings,
-                      negentity_embs=self.posterior_model.negentity_embeddings,
-                      allentity_embs=self.posterior_model.sampled_entity_embeddings,
-                      batch_size=self.batch_size,
-                      doclength=self.WDLength,
-                      wordembeddim=self.word_embed_dim,
-                      filtersize=self.Fsize,
-                      desc_encoded_dim=context_vec_size,
-                      scope_name=self.wikidesc_model_scope,
-                      device=self.device_placements['gpu'],
-                      dropout_keep_prob=self.dropout_keep_prob)
-            #end - encoder variable scope
-
+                        desc_batch=self.wikidesc_batch,
+                        trueentity_embs=self.posterior_model.trueentity_embeddings,
+                        negentity_embs=self.posterior_model.negentity_embeddings,
+                        allentity_embs=self.posterior_model.sampled_entity_embeddings,
+                        batch_size=self.batch_size,
+                        doclength=self.WDLength,
+                        wordembeddim=self.word_embed_dim,
+                        filtersize=self.Fsize,
+                        desc_encoded_dim=context_vec_size,
+                        scope_name=self.wikidesc_model_scope,
+                        device=self.device_placements["gpu"],
+                        dropout_keep_prob=self.dropout_keep_prob,
+                    )
+            # end - encoder variable scope
 
         # Encoder FF Variables + Cluster Embedding
         self.train_vars = tf.trainable_variables()
 
         self.loss_optim = LossOptim(self)
-    ################ end Initialize  #############################################
 
+    ################ end Initialize  #############################################
 
     def build_placeholders(self):
         # Left Context
         self.left_batch = tf.placeholder(
-          tf.int32, [self.batch_size, None], name="left_batch")
+            tf.int32, [self.batch_size, None], name="left_batch"
+        )
         self.left_context_embeddings = tf.placeholder(
-          tf.float32, [self.batch_size, None, self.word_embed_dim], name="left_embeddings")
+            tf.float32,
+            [self.batch_size, None, self.word_embed_dim],
+            name="left_embeddings",
+        )
         self.left_lengths = tf.placeholder(
-          tf.int32, [self.batch_size], name="left_lengths")
+            tf.int32, [self.batch_size], name="left_lengths"
+        )
 
         # Right Context
         self.right_batch = tf.placeholder(
-          tf.int32, [self.batch_size, None], name="right_batch")
+            tf.int32, [self.batch_size, None], name="right_batch"
+        )
         self.right_context_embeddings = tf.placeholder(
-          tf.float32, [self.batch_size, None, self.word_embed_dim], name="right_embeddings")
+            tf.float32,
+            [self.batch_size, None, self.word_embed_dim],
+            name="right_embeddings",
+        )
         self.right_lengths = tf.placeholder(
-          tf.int32, [self.batch_size], name="right_lengths")
+            tf.int32, [self.batch_size], name="right_lengths"
+        )
 
         # Mention Embedding
         self.mention_embed = tf.placeholder(
-          tf.float32, [self.batch_size, self.word_embed_dim], name="mentions_embed")
+            tf.float32, [self.batch_size, self.word_embed_dim], name="mentions_embed"
+        )
 
         # Wiki Description Batch
         self.wikidesc_batch = tf.placeholder(
-          tf.float32, [self.batch_size, self.WDLength, self.word_embed_dim],
-          name="wikidesc_batch")
+            tf.float32,
+            [self.batch_size, self.WDLength, self.word_embed_dim],
+            name="wikidesc_batch",
+        )
 
         # Labels
         self.labels_batch = tf.placeholder(
-          tf.float32, [self.batch_size, self.num_labels], name="true_labels")
+            tf.float32, [self.batch_size, self.num_labels], name="true_labels"
+        )
 
         # Candidates, Priors and True Entities Ids
         self.sampled_entity_ids = tf.placeholder(
-          tf.int32, [self.batch_size, self.num_cand_entities], name="sampled_candidate_entities")
+            tf.int32,
+            [self.batch_size, self.num_cand_entities],
+            name="sampled_candidate_entities",
+        )
 
         self.entity_priors = tf.placeholder(
-          tf.float32, [self.batch_size, self.num_cand_entities], name="entitiy_priors")
+            tf.float32, [self.batch_size, self.num_cand_entities], name="entitiy_priors"
+        )
 
         self.true_entity_ids = tf.placeholder(
-          tf.int32, [self.batch_size], name="true_entities_in_sampled")
+            tf.int32, [self.batch_size], name="true_entities_in_sampled"
+        )
 
         # Coherence
         self.coherence_indices = tf.placeholder(
-          tf.int64, [None, 2], name="coherence_indices")
+            tf.int64, [None, 2], name="coherence_indices"
+        )
 
         self.coherence_values = tf.placeholder(
-          tf.float32, [None], name="coherence_values")
+            tf.float32, [None], name="coherence_values"
+        )
 
         self.coherence_matshape = tf.placeholder(
-          tf.int64, [2], name="coherence_matshape")
+            tf.int64, [2], name="coherence_matshape"
+        )
 
-        #END-Placeholders
+        # END-Placeholders
 
         if self.pretrain_word_embed == False:
             with tf.variable_scope(self.embeddings_scope) as s:
-                with tf.device(self.device_placements['cpu']) as d:
+                with tf.device(self.device_placements["cpu"]) as d:
                     self.word_embeddings = tf.get_variable(
-                      name=self.word_embed_var_name,
-                      shape=[self.num_words, self.word_embed_dim],
-                      initializer=tf.random_normal_initializer(
-                        mean=0.0, stddev=(1.0/100.0)))
+                        name=self.word_embed_var_name,
+                        shape=[self.num_words, self.word_embed_dim],
+                        initializer=tf.random_normal_initializer(
+                            mean=0.0, stddev=(1.0 / 100.0)
+                        ),
+                    )
 
     def training_setup(self):
         # Make the loss graph
@@ -300,8 +367,8 @@ class ELModel(Model):
 
         print("[#] Defining pretraining losses and optimizers ...")
         self.loss_optim.label_optimization(
-          trainable_vars=self.train_vars,
-          optim_scope=self.optim_scope)
+            trainable_vars=self.train_vars, optim_scope=self.optim_scope
+        )
 
         print("All Trainable Variables")
         self.print_variables_in_collection(tf.trainable_variables())
@@ -314,9 +381,9 @@ class ELModel(Model):
         # (Try) Load all pretraining model variables
         # If graph not found - Initialize trainable + optim variables
         print("Loading pre-saved checkpoint...")
-        load_status = self.load(saver=saver,
-                                checkpoint_dir=self.checkpoint_dir,
-                                attrs=self._attrs)
+        load_status = self.load(
+            saver=saver, checkpoint_dir=self.checkpoint_dir, attrs=self._attrs
+        )
         if not load_status:
             print("No checkpoint found. Training from scratch")
             self.sess.run(tf.initialize_variables(vars_tostore))
@@ -332,21 +399,29 @@ class ELModel(Model):
         for iteration in range(start_iter, self.max_steps):
             dstime = time.time()
             # GET BATCH
-            (left_batch, left_lengths,
-             right_batch, right_lengths,
-             wikidesc_batch,
-             labels_batch, coherence_batch,
-             wid_idxs_batch, wid_cprobs_batch) = self.reader.next_train_batch()
+            (
+                left_batch,
+                left_lengths,
+                right_batch,
+                right_lengths,
+                wikidesc_batch,
+                labels_batch,
+                coherence_batch,
+                wid_idxs_batch,
+                wid_cprobs_batch,
+            ) = self.reader.next_train_batch()
             (coh_indices, coh_values, coh_matshape) = coherence_batch
 
             dtime = time.time() - dstime
             data_loading += dtime
 
             # FEED DICT
-            feed_dict = {self.wikidesc_batch: wikidesc_batch,
-                         self.sampled_entity_ids: wid_idxs_batch,
-                         self.true_entity_ids: [0]*self.batch_size,
-                         self.entity_priors: wid_cprobs_batch}
+            feed_dict = {
+                self.wikidesc_batch: wikidesc_batch,
+                self.sampled_entity_ids: wid_idxs_batch,
+                self.true_entity_ids: [0] * self.batch_size,
+                self.entity_priors: wid_cprobs_batch,
+            }
 
             if self.typing or self.entyping:
                 type_dict = {self.labels_batch: labels_batch}
@@ -355,88 +430,120 @@ class ELModel(Model):
             if self.textcontext:
                 if not self.pretrain_word_embed:
                     context_dict = {
-                      self.left_batch: left_batch,
-                      self.right_batch: right_batch,
-                      self.left_lengths: left_lengths,
-                      self.right_lengths: right_lengths}
+                        self.left_batch: left_batch,
+                        self.right_batch: right_batch,
+                        self.left_lengths: left_lengths,
+                        self.right_lengths: right_lengths,
+                    }
                     feed_dict.update(context_dict)
                 else:
                     context_dict = {
-                      self.left_context_embeddings: left_batch,
-                      self.right_context_embeddings: right_batch,
-                      self.left_lengths: left_lengths,
-                      self.right_lengths: right_lengths}
+                        self.left_context_embeddings: left_batch,
+                        self.right_context_embeddings: right_batch,
+                        self.left_lengths: left_lengths,
+                        self.right_lengths: right_lengths,
+                    }
                     feed_dict.update(context_dict)
             if self.coherence:
-                coherence_dict = {self.coherence_indices: coherence_batch[0],
-                                  self.coherence_values: coherence_batch[1],
-                                  self.coherence_matshape: coherence_batch[2]}
+                coherence_dict = {
+                    self.coherence_indices: coherence_batch[0],
+                    self.coherence_values: coherence_batch[1],
+                    self.coherence_matshape: coherence_batch[2],
+                }
                 feed_dict.update(coherence_dict)
 
             # FETCH TENSORS
-            fetch_tensors = [self.loss_optim.labeling_loss,
-                             self.labeling_model.label_probs,
-                             self.loss_optim.posterior_loss,
-                             self.posterior_model.entity_posteriors,
-                             self.loss_optim.entity_labeling_loss]
+            fetch_tensors = [
+                self.loss_optim.labeling_loss,
+                self.labeling_model.label_probs,
+                self.loss_optim.posterior_loss,
+                self.posterior_model.entity_posteriors,
+                self.loss_optim.entity_labeling_loss,
+            ]
             if self.useCNN:
                 fetch_tensors.append(self.loss_optim.wikidesc_loss)
 
-            (fetches_old,
-             _,
-             _) = self.sess.run([fetch_tensors,
-                                 self.loss_optim.optim_op,
-                                 self.increment_global_step_op],
-                                feed_dict=feed_dict)
-            [old_loss, old_label_sigms,
-             old_post_loss, old_posts,
-             enLabelLoss] = fetches_old[0:5]
+            (fetches_old, _, _) = self.sess.run(
+                [
+                    fetch_tensors,
+                    self.loss_optim.optim_op,
+                    self.increment_global_step_op,
+                ],
+                feed_dict=feed_dict,
+            )
+            [
+                old_loss,
+                old_label_sigms,
+                old_post_loss,
+                old_posts,
+                enLabelLoss,
+            ] = fetches_old[0:5]
             if self.useCNN:
-                [oldCNNLoss, trueCosDis,
-                 negCosDis] = [fetches_old[5], 0.0, 0.0]
+                [oldCNNLoss, trueCosDis, negCosDis] = [fetches_old[5], 0.0, 0.0]
             else:
                 [oldCNNLoss, trueCosDis, negCosDis] = [0.0, 0.0, 0.0]
-            '''
+            """
             fetches_new = self.sess.run(fetch_tensors,
                                         feed_dict=feed_dict)
             [new_loss, new_label_sigms,
              new_post_loss,  new_posts] = fetches_new
-            '''
+            """
 
             if iteration % 100 == 0:
                 # [B, L]
                 old_corr_preds, old_precision = evaluate.strict_pred(
-                  labels_batch, old_label_sigms)
+                    labels_batch, old_label_sigms
+                )
                 context_preds = evaluate.correct_context_prediction(
-                  old_posts, self.batch_size)
+                    old_posts, self.batch_size
+                )
 
-                print("Iter %2d, Epoch %d, T %4.2f secs, "
-                      "Labeling Loss %.3f, EnLabelLoss %.3f"
-                      % (iteration, self.reader.tr_epochs, time.time() - start_time,
-                         old_loss, enLabelLoss))
-                print("Old Posterior Loss : {0:.3f}, CNN Loss: {1:.3f} "
-                      "TrueCos: {2:.3f} NegCos: {3:.3f}".format(
-                      old_post_loss, oldCNNLoss, trueCosDis, negCosDis))
-                print("[OLD] Num of strict correct predictions : {}, {}".format(
-                      old_corr_preds, old_precision))
-                print("[OLD] Num of correct context predictions : {}".format(
-                    context_preds))
+                print(
+                    "Iter %2d, Epoch %d, T %4.2f secs, "
+                    "Labeling Loss %.3f, EnLabelLoss %.3f"
+                    % (
+                        iteration,
+                        self.reader.tr_epochs,
+                        time.time() - start_time,
+                        old_loss,
+                        enLabelLoss,
+                    )
+                )
+                print(
+                    "Old Posterior Loss : {0:.3f}, CNN Loss: {1:.3f} "
+                    "TrueCos: {2:.3f} NegCos: {3:.3f}".format(
+                        old_post_loss, oldCNNLoss, trueCosDis, negCosDis
+                    )
+                )
+                print(
+                    "[OLD] Num of strict correct predictions : {}, {}".format(
+                        old_corr_preds, old_precision
+                    )
+                )
+                print(
+                    "[OLD] Num of correct context predictions : {}".format(
+                        context_preds
+                    )
+                )
 
                 print("Time to load data : %4.2f seconds \n" % data_loading)
                 data_loading = 0
 
             if iteration != 0 and iteration % 500 == 0:
-                self.save(saver=saver,
-                          checkpoint_dir=self.checkpoint_dir,
-                          attrs=self._attrs,
-                          global_step=self.global_step)
+                self.save(
+                    saver=saver,
+                    checkpoint_dir=self.checkpoint_dir,
+                    attrs=self._attrs,
+                    global_step=self.global_step,
+                )
                 self.validation_performance(data_type=1, verbose=False)
                 self.validation_performance(data_type=2, verbose=False)
 
             if iteration % 5000 == 0:
                 print("Collecting garbage.")
                 gc.collect()
-    #end training
+
+    # end training
 
     # #####################      TEST     ##################################
     def load_ckpt_model(self, ckptpath=None):
@@ -450,7 +557,6 @@ class ELModel(Model):
             sys.exit(0)
 
         tf.get_default_graph().finalize()
-
 
     def inference(self, ckptpath=None):
         saver = tf.train.Saver(var_list=tf.all_variables())
@@ -476,15 +582,22 @@ class ELModel(Model):
         # For types: List contains numpy matrices with row_size = BatchSize
         predLabelScoresnumpymat_list = []
         # For EL : Lists contain one list per mention
-        widIdxs_list = []       # Candidate WID IDXs (First is true)
-        condProbs_list = []     # Crosswikis conditional priors
+        widIdxs_list = []  # Candidate WID IDXs (First is true)
+        condProbs_list = []  # Crosswikis conditional priors
         contextProbs_list = []  # Predicted Entity prob using context
 
         while self.reader.epochs < 1:
-            (left_batch, left_lengths,
-             right_batch, right_lengths,
-             coherence_batch,
-             wid_idxs_batch, wid_cprobs_batch) = self.reader.next_test_batch()
+            (
+                left_batch,
+                left_lengths,
+                right_batch,
+                right_lengths,
+                coherence_batch,
+                wid_idxs_batch,
+                wid_cprobs_batch,
+            ) = self.reader.next_test_batch()
+            if left_batch is None:
+                return (None, None, None, None, None, None, None)
 
             # Candidates for entity linking
             # feed_dict = {self.sampled_entity_ids: wid_idxs_batch,
@@ -494,25 +607,31 @@ class ELModel(Model):
             if self.textcontext:
                 if not self.pretrain_word_embed:
                     context_dict = {
-                      self.left_batch: left_batch,
-                      self.right_batch: right_batch,
-                      self.left_lengths: left_lengths,
-                      self.right_lengths: right_lengths}
+                        self.left_batch: left_batch,
+                        self.right_batch: right_batch,
+                        self.left_lengths: left_lengths,
+                        self.right_lengths: right_lengths,
+                    }
                 else:
                     context_dict = {
-                      self.left_context_embeddings: left_batch,
-                      self.right_context_embeddings: right_batch,
-                      self.left_lengths: left_lengths,
-                      self.right_lengths: right_lengths}
+                        self.left_context_embeddings: left_batch,
+                        self.right_context_embeddings: right_batch,
+                        self.left_lengths: left_lengths,
+                        self.right_lengths: right_lengths,
+                    }
                 feed_dict.update(context_dict)
             if self.coherence:
-                coherence_dict = {self.coherence_indices: coherence_batch[0],
-                                  self.coherence_values: coherence_batch[1],
-                                  self.coherence_matshape: coherence_batch[2]}
+                coherence_dict = {
+                    self.coherence_indices: coherence_batch[0],
+                    self.coherence_values: coherence_batch[1],
+                    self.coherence_matshape: coherence_batch[2],
+                }
                 feed_dict.update(coherence_dict)
 
-            fetch_tensors = [self.labeling_model.label_probs,
-                             self.posterior_model.entity_posteriors]
+            fetch_tensors = [
+                self.labeling_model.label_probs,
+                self.posterior_model.entity_posteriors,
+            ]
 
             fetches = self.sess.run(fetch_tensors, feed_dict=feed_dict)
 
@@ -528,23 +647,30 @@ class ELModel(Model):
         # print("Starting Type and EL Evaluations ... ")
         # pred_TypeSetsList: [B, Types], For each mention, list of pred types
         pred_TypeSetsList = evaluate_types.evaluate(
-            predLabelScoresnumpymat_list,
-            self.reader.idx2label)
+            predLabelScoresnumpymat_list, self.reader.idx2label
+        )
 
         # evWTs:For each mention: Contains a list of [WTs, WIDs, Probs]
         # Each element above has (MaxPrior, MaxContext, MaxJoint)
         # sortedContextWTs: Titles sorted in decreasing context prob
-        (jointProbs_list,
-         evWTs,
-         sortedContextWTs) = evaluate_inference.evaluateEL(
-            condProbs_list, widIdxs_list, contextProbs_list,
-            self.reader.idx2knwid, self.reader.wid2WikiTitle,
-            verbose=False)
+        (jointProbs_list, evWTs, sortedContextWTs) = evaluate_inference.evaluateEL(
+            condProbs_list,
+            widIdxs_list,
+            contextProbs_list,
+            self.reader.idx2knwid,
+            self.reader.wid2WikiTitle,
+            verbose=False,
+        )
 
-        return (predLabelScoresnumpymat_list,
-                widIdxs_list, condProbs_list, contextProbs_list,
-                jointProbs_list, evWTs, pred_TypeSetsList)
-
+        return (
+            predLabelScoresnumpymat_list,
+            widIdxs_list,
+            condProbs_list,
+            contextProbs_list,
+            jointProbs_list,
+            evWTs,
+            pred_TypeSetsList,
+        )
 
     def dataset_test(self, ckptpath=None):
         saver = tf.train.Saver(var_list=tf.all_variables())
@@ -562,7 +688,7 @@ class ELModel(Model):
 
     def dataset_performance(self):
         print("Test accuracy starting ... ")
-        assert self.reader.typeOfReader=="test"
+        assert self.reader.typeOfReader == "test"
         # assert self.reader.batch_size == 1
         self.reader.reset_test()
         numInstances = 0
@@ -573,40 +699,57 @@ class ELModel(Model):
         trueLabelScoresnumpymat_list = []
         predLabelScoresnumpymat_list = []
         # For EL : Lists contain one list per mention
-        condProbs_list = []    # Crosswikis conditional priors
-        widIdxs_list = []      # Candidate WID IDXs (First is true)
-        contextProbs_list = [] # Predicted Entity prob using context
+        condProbs_list = []  # Crosswikis conditional priors
+        widIdxs_list = []  # Candidate WID IDXs (First is true)
+        contextProbs_list = []  # Predicted Entity prob using context
 
         while self.reader.epochs < 1:
-            (left_batch, left_lengths,
-             right_batch, right_lengths,
-             # wikidesc_batch,
-             labels_batch, coherence_batch,
-             wid_idxs_batch, wid_cprobs_batch) = self.reader.next_test_batch()
+            (
+                left_batch,
+                left_lengths,
+                right_batch,
+                right_lengths,
+                # wikidesc_batch,
+                labels_batch,
+                coherence_batch,
+                wid_idxs_batch,
+                wid_cprobs_batch,
+            ) = self.reader.next_test_batch()
 
             # Candidates for entity linking
-            feed_dict = {#self.wikidesc_batch: wikidesc_batch,
-                         self.sampled_entity_ids: wid_idxs_batch,
-                         self.entity_priors: wid_cprobs_batch}
+            feed_dict = {  # self.wikidesc_batch: wikidesc_batch,
+                self.sampled_entity_ids: wid_idxs_batch,
+                self.entity_priors: wid_cprobs_batch,
+            }
             # Required Context
             if self.textcontext:
                 if self.pretrain_word_embed == False:
                     context_dict = {
-                      self.left_batch: left_batch, self.right_batch: right_batch,
-                      self.left_lengths: left_lengths, self.right_lengths: right_lengths}
+                        self.left_batch: left_batch,
+                        self.right_batch: right_batch,
+                        self.left_lengths: left_lengths,
+                        self.right_lengths: right_lengths,
+                    }
                 else:
                     context_dict = {
-                      self.left_context_embeddings: left_batch, self.right_context_embeddings: right_batch,
-                      self.left_lengths: left_lengths, self.right_lengths: right_lengths}
+                        self.left_context_embeddings: left_batch,
+                        self.right_context_embeddings: right_batch,
+                        self.left_lengths: left_lengths,
+                        self.right_lengths: right_lengths,
+                    }
                 feed_dict.update(context_dict)
             if self.coherence:
-                coherence_dict = {self.coherence_indices: coherence_batch[0],
-                                  self.coherence_values: coherence_batch[1],
-                                  self.coherence_matshape: coherence_batch[2]}
+                coherence_dict = {
+                    self.coherence_indices: coherence_batch[0],
+                    self.coherence_values: coherence_batch[1],
+                    self.coherence_matshape: coherence_batch[2],
+                }
                 feed_dict.update(coherence_dict)
 
-            fetch_tensors = [self.labeling_model.label_probs,
-                             self.posterior_model.entity_posteriors]
+            fetch_tensors = [
+                self.labeling_model.label_probs,
+                self.posterior_model.entity_posteriors,
+            ]
 
             fetches = self.sess.run(fetch_tensors, feed_dict=feed_dict)
 
@@ -628,20 +771,28 @@ class ELModel(Model):
         #   self.reader.idx2label)
         # evaluate.types_predictions(
         #   trueLabelScoresnumpymat_list, predLabelScoresnumpymat_list)
-        (jointProbs_list,
-         evWTs,
-         sortedContextWTs) = evaluate_el.evaluateEL(
-            condProbs_list, widIdxs_list, contextProbs_list,
-            self.reader.idx2knwid, self.reader.wid2WikiTitle,
-            verbose=False)
+        (jointProbs_list, evWTs, sortedContextWTs) = evaluate_el.evaluateEL(
+            condProbs_list,
+            widIdxs_list,
+            contextProbs_list,
+            self.reader.idx2knwid,
+            self.reader.wid2WikiTitle,
+            verbose=False,
+        )
 
-        return (widIdxs_list, condProbs_list, contextProbs_list,
-                jointProbs_list, evWTs, sortedContextWTs)
+        return (
+            widIdxs_list,
+            condProbs_list,
+            contextProbs_list,
+            jointProbs_list,
+            evWTs,
+            sortedContextWTs,
+        )
 
     def softmax(self, scores):
         expc = np.exp(scores)
         sumc = np.sum(expc)
-        softmax_out = expc/sumc
+        softmax_out = expc / sumc
         return softmax_out
 
     def print_all_variables(self):

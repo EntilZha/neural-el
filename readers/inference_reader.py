@@ -6,14 +6,16 @@ from readers.Mention import Mention
 from readers.config import Config
 from readers.vocabloader import VocabLoader
 from ccg_nlpy import remote_pipeline
+import time
 
 start_word = "<s>"
 end_word = "<eos>"
 
 class InferenceReader(object):
     def __init__(self, config, vocabloader, test_mens_file,
-                 num_cands, batch_size, strict_context=True,
+                 num_cands, batch_size, word2idx, idx2word, wid2WikiTitle, crosswikis, word2vec, strict_context=True,
                  pretrain_wordembed=True, coherence=True):
+        start = time.time()
         self.pipeline = remote_pipeline.RemotePipeline(
             server_api='http://macniece.seas.upenn.edu:4001')
         self.typeOfReader = "inference"
@@ -26,20 +28,36 @@ class InferenceReader(object):
         self.pretrain_wordembed = pretrain_wordembed
         self.coherence = coherence
 
+        print("Initial took {} time".format(time.time()-start))
+        start = time.time()
+
         # Word Vocab
-        (self.word2idx, self.idx2word) = vocabloader.getGloveWordVocab()
+        self.word2idx = word2idx
+        self.idx2word = idx2word
         self.num_words = len(self.idx2word)
+
+        print("Word Vocab {} time".format(time.time()-start))
+        start = time.time()
 
         # Label Vocab
         (self.label2idx, self.idx2label) = vocabloader.getLabelVocab()
         self.num_labels = len(self.idx2label)
 
+        print("Label vocab took {} time".format(time.time()-start))
+        start = time.time()
+
         # Known WID Vocab
         (self.knwid2idx, self.idx2knwid) = vocabloader.getKnwnWidVocab()
         self.num_knwn_entities = len(self.idx2knwid)
 
+        print("WID took {} time".format(time.time()-start))
+        start = time.time()
+
         # Wid2Wikititle Map
-        self.wid2WikiTitle = vocabloader.getWID2Wikititle()
+        self.wid2WikiTitle = wid2WikiTitle
+
+        print("Wid2Wikititle took {} time".format(time.time()-start))
+        start = time.time()
 
         # Coherence String Vocab
         print("Loading Coherence Strings Dicts ... ")
@@ -47,17 +65,25 @@ class InferenceReader(object):
             config.cohstringG9_vocab_pkl)
         self.num_cohstr = len(self.idx2cohG9)
 
+        print("Coherence String Dicts took {} time".format(time.time()-start))
+        start = time.time()
+
         # Crosswikis
         print("Loading Crosswikis dict. (takes ~2 mins to load)")
-        self.crosswikis = utils.load(config.crosswikis_pruned_pkl)
+        self.crosswikis = crosswikis 
         print("Crosswikis loaded. Size: {}".format(len(self.crosswikis)))
+
+        print("Cross wikis took {} time".format(time.time()-start))
+        start = time.time()
 
         if self.pretrain_wordembed:
             stime = time.time()
-            self.word2vec = vocabloader.loadGloveVectors()
+            self.word2vec = word2vec
             print("[#] Glove Vectors loaded!")
             ttime = (time.time() - stime)/float(60)
 
+        print("Glove took {} time".format(time.time()-start))
+        start = time.time()
 
         print("[#] Test Mentions File : {}".format(test_mens_file))
 
@@ -69,10 +95,15 @@ class InferenceReader(object):
             m = Mention(line)
             self.mentions.append(m)
 
+        print("Self.mentions {}".format(self.mentions))
+
         self.men_idx = 0
         self.num_mens = len(self.mentions)
         self.epochs = 0
         print( "[#] Test Mentions : {}".format(self.num_mens))
+
+        print("Test mentions took {} time".format(time.time()-start))
+        start = time.time()
 
         self.batch_size = batch_size
         print("[#] Batch Size: %d" % self.batch_size)
@@ -118,6 +149,9 @@ class InferenceReader(object):
             self.ner_cons_list = self.ccgdoc.get_ner_conll.cons_list
         except:
             print("NO NAMED ENTITIES IN THE DOC. EXITING")
+
+        if self.ner_cons_list == None:
+            self.ner_cons_list = []         
 
         # SentIdx : [(tokenized_sent, ner_dict)]
         self.sentidx2ners = {}
@@ -281,14 +315,15 @@ class InferenceReader(object):
             candwids_cprobs = self.crosswikis[surface][0:self.num_cands-1]
             (wids, wid_cprobs) = candwids_cprobs
             wid_idxs = [self.knwid2idx[wid] for wid in wids]
+        else:
+            wid_idxs = []
+            wid_cprobs = []
 
-        # All possible candidates added now. Pad with unks
-        assert len(wid_idxs) == len(wid_cprobs)
-        remain = self.num_cands - len(wid_idxs)
-        wid_idxs.extend([0]*remain)
-        wid_cprobs.extend([0.0]*remain)
+        wid_idxs.extend([0]*(self.num_cands-len(wid_idxs)))
+        wid_cprobs.extend([0.0]*(self.num_cands-len(wid_cprobs)))
 
         return (wid_idxs, wid_cprobs)
+
 
     def embed_batch(self, batch):
         ''' Input is a padded batch of left or right contexts containing words
